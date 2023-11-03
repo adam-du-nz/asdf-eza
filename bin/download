@@ -8,6 +8,4 @@ plugin_dir=$(dirname "$(dirname "$current_script_path")")
 # shellcheck source=./lib/utils.zsh
 source "${plugin_dir}/lib/utils.zsh"
 
-mkdir -p "$ASDF_DOWNLOAD_PATH"
-
 download_release "$ASDF_INSTALL_TYPE" "$ASDF_INSTALL_VERSION" "$ASDF_DOWNLOAD_PATH"

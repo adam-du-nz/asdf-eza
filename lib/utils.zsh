@@ -34,10 +34,10 @@ download_path() {
 	local version=$1
 	local tmp_download_dir=$2
 
-	echo "$tmp_download_dir/$TOOL_NAME-${version}.tar.gz"
+	echo "${tmp_download_dir}${TOOL_NAME}-${version}.tar.gz"
 }
 
-download_url() {
+compose_url() {
 	local install_type version architecture
 	install_type=$1
 	version_arg=$2
@@ -51,14 +51,14 @@ download_url() {
 		fail "asdf-$TOOL_NAME supports release installs only"
 	fi
 
-  case "$(uname -m | tr '[:upper:]' '[:lower:]')" in
-    aarch64* | arm64) architecture="aarch64" ;;
-    armv5* | armv6* | armv7*) architecture="arm" ;;
-    x86_64*) architecture="x86_64" ;;
-    *) fail "Unsupported architecture" ;;
-  esac
+	case "$(uname -m | tr '[:upper:]' '[:lower:]')" in
+		aarch64* | arm64) architecture="aarch64" ;;
+		armv5* | armv6* | armv7*) architecture="arm" ;;
+		x86_64*) architecture="x86_64" ;;
+		*) fail "Unsupported architecture" ;;
+	esac
 
-	echo "$GH_REPO/releases/download/v${version}/${TOOL_NAME}_${architecture}-unknown-linux-gnu.tar.gz"
+	echo "$GH_REPO/releases/download/${version}/${TOOL_NAME}_${architecture}-unknown-linux-gnu.tar.gz"
 
 	return
 }
@@ -69,11 +69,9 @@ download_version() {
 	local download_path=$3
 	local download_url
 
-	download_url=$(download_url "$install_type" "$version")
+	download_url=$(compose_url "$install_type" "$version")
 
 	[ -f $download_path ] && rm "$download_path"
-
-	echo "Downloading $download_url"
 	curl "${curl_opts[@]}" -o "$download_path" -C - "$download_url" || fail "Could not download $download_url"
 }
 
@@ -101,7 +99,7 @@ download_release() {
 			exit 1
 		fi
 
-		tar zxf "$archive_path" -C "$download_path" --strip-components=1 || fail "Could not extract $archive_path"
+		tar -xzf "$archive_path" -C "$download_path" || fail "Could not extract $archive_path"
 	)
 }
 
@@ -109,6 +107,7 @@ install_version() {
 	local install_type="$1"
 	local download_path="$2"
 	local install_path="$3"
+	local bin_install_path="$install_path/bin"
 
 	if [ -z "$download_path" ]; then
 		#: We're on asdf 0.7.*
@@ -120,18 +119,21 @@ install_version() {
 	if [ "$install_type" != "version" ]; then
 		fail "asdf-$TOOL_NAME supports release installs only"
 	fi
+
+	local bin_path="${bin_install_path}/${TOOL_NAME}"
 	(
+		mkdir -p "${bin_install_path}"
 		# move the prebuilt artifact to the install path
-		mv -f "$download_path"/** "$install_path"
-		chmod +x "${install_path}/bin/${TOOL_NAME}"
+		cp -r "${download_path}"/* "$bin_install_path"
+		chmod +x "$bin_path"
 
 		local tool_cmd
-		# tool_cmd="$(echo "$TOOL_TEST" | cut -d' ' -f1)"
-		test -x "$install_path/bin/${TOOL_TEST}" || fail "Expected $install_path/bin/${TOOL_TEST} to be executable."
+		tool_cmd="$(echo "$TOOL_TEST" | cut -d' ' -f1)"
+		test -x "$bin_install_path/$tool_cmd" || fail "Expected $install_path/bin/${TOOL_TEST} to be executable."
 
-		echo "$TOOL_NAME $version installation was successful!"
+		echo "$TOOL_NAME $ASDF_INSTALL_VERSION installation was successful!"
 	) || (
 		rm -rf "$install_path"
-		fail "An error occurred while installing $TOOL_NAME $version."
+		fail "An error occurred while installing $TOOL_NAME $ASDF_INSTALL_VERSION."
 	)
 }
